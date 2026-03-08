@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LedgerFlow — Business Accounting</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#4f8ef7"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="LedgerFlow"/>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('SW registered:', reg.scope))
+        .catch(err => console.log('SW error:', err));
+    });
+  }
+</script>
+<style>
+:root {
+  --bg: #0d0f14;
+  --surface: #13161e;
+  --surface2: #1a1e28;
+  --border: #252a38;
+  --accent: #4f8ef7;
+  --accent2: #7c6af7;
+  --green: #2dd4a0;
+  --red: #f76f6f;
+  --orange: #f7a44f;
+  --yellow: #f7d44f;
+  --text: #e8eaf0;
+  --muted: #7a8099;
+  --muted2: #4a5066;
+  --sidebar-w: 230px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;height:100vh;overflow-y:auto;}
+.logo{padding:22px 20px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;}
+.logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;letter-spacing:-0.3px;}
+.logo-text span{color:var(--accent);}
+.org-picker{margin:12px;background:var(--surface2);border-radius:10px;padding:10px 12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);}
+.org-picker .org-name{font-size:13px;font-weight:500;}
+.org-picker .org-sub{font-size:11px;color:var(--muted);}
+.org-picker svg{color:var(--muted);flex-shrink:0;}
+nav{flex:1;padding:8px 0;}
+.nav-section{padding:10px 14px 4px;font-size:10.5px;font-weight:600;color:var(--muted2);letter-spacing:1.2px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;font-size:13.5px;color:var(--muted);border-radius:8px;margin:1px 8px;transition:all .15s;}
+.nav-item:hover{background:var(--surface2);color:var(--text);}
+.nav-item.active{background:linear-gradient(135deg,rgba(79,142,247,.15),rgba(124,106,247,.15));color:var(--accent);font-weight:500;}
+.nav-item .nav-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.nav-badge{margin-left:auto;background:var(--accent);color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;}
+.sidebar-footer{padding:14px;border-top:1px solid var(--border);}
+.user-row{display:flex;align-items:center;gap:10px;}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;}
+.user-info .name{font-size:13px;font-weight:500;}
+.user-info .role{font-size:11px;color:var(--muted);}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0;}
+.topbar-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;flex:1;}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;width:240px;}
+.search-box input{background:none;border:none;outline:none;color:var(--text);font-size:13px;width:100%;}
+.search-box input::placeholder{color:var(--muted2);}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-danger{background:rgba(247,111,111,.15);color:var(--red);border:1px solid rgba(247,111,111,.3);}
+
+.content{flex:1;overflow-y:auto;padding:24px;}
+
+/* PAGES */
+.page{display:none;}
+.page.active{display:block;}
+
+/* DASHBOARD */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;}
+.kpi-label{font-size:12px;color:var(--muted);font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.kpi-value{font-family:'Syne',sans-serif;font-size:26px;font-weight:700;margin-bottom:4px;}
+.kpi-change{font-size:12px;display:flex;align-items:center;gap:4px;}
+.kpi-change.up{color:var(--green);}
+.kpi-change.down{color:var(--red);}
+.kpi-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+.grid-2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:24px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.card-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}
+
+/* CHART */
+.bar-chart{display:flex;align-items:flex-end;gap:8px;height:120px;}
+.bar-group{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;}
+.bar-wrap{display:flex;gap:3px;align-items:flex-end;height:100px;}
+.bar{border-radius:4px 4px 0 0;width:10px;transition:height .4s ease;}
+.bar.income{background:linear-gradient(180deg,var(--accent),rgba(79,142,247,.3));}
+.bar.expense{background:linear-gradient(180deg,var(--red),rgba(247,111,111,.3));}
+.bar-label{font-size:10px;color:var(--muted);margin-top:4px;}
+
+/* TABLE */
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);}
+.data-table td{padding:11px 12px;font-size:13px;border-bottom:1px solid rgba(37,42,56,.5);}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:rgba(79,142,247,.04);}
+.status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;}
+.status-badge.paid{background:rgba(45,212,160,.15);color:var(--green);}
+.status-badge.pending{background:rgba(247,164,79,.15);color:var(--orange);}
+.status-badge.overdue{background:rgba(247,111,111,.15);color:var(--red);}
+.status-badge.draft{background:rgba(122,128,153,.12);color:var(--muted);}
+.status-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+
+/* INVOICE PAGE */
+.page-actions{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.filters{display:flex;gap:8px;}
+.filter-btn{padding:6px 14px;border-radius:8px;font-size:12.5px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all .15s;}
+.filter-btn.active{background:rgba(79,142,247,.15);color:var(--accent);border-color:rgba(79,142,247,.3);}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:680px;max-height:90vh;overflow-y:auto;padding:28px;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.modal-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+.close-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:none;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:18px;}
+.close-btn:hover{background:var(--surface2);color:var(--text);}
+
+/* FORM */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-group{margin-bottom:16px;}
+.form-group.full{grid-column:1/-1;}
+label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:6px;}
+input[type=text],input[type=number],input[type=date],input[type=email],select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13.5px;font-family:'DM Sans',sans-serif;outline:none;transition:border .15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+select option{background:var(--surface2);}
+textarea{resize:vertical;min-height:70px;}
+
+/* LINE ITEMS */
+.line-items-header{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 36px;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:8px 8px 0 0;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;}
+.line-item-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 36px;gap:8px;padding:6px;border-bottom:1px solid var(--border);}
+.line-item-row input{margin:0;}
+.remove-btn{width:28px;height:28px;border-radius:6px;border:1px solid rgba(247,111,111,.3);background:rgba(247,111,111,.08);color:var(--red);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;align-self:center;flex-shrink:0;}
+.remove-btn:hover{background:rgba(247,111,111,.2);}
+.invoice-totals{margin-top:12px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.total-row{display:flex;gap:24px;font-size:13px;}
+.total-row .total-label{color:var(--muted);min-width:80px;text-align:right;}
+.total-row .total-val{font-weight:600;min-width:90px;text-align:right;}
+.total-row.grand{font-size:16px;border-top:1px solid var(--border);padding-top:8px;margin-top:4px;}
+.total-row.grand .total-val{color:var(--accent);font-family:'Syne',sans-serif;font-weight:700;}
+
+/* CLIENTS */
+.client-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.client-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;cursor:pointer;transition:all .15s;}
+.client-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.client-avatar{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;margin-bottom:12px;}
+.client-name{font-weight:600;font-size:14px;margin-bottom:3px;}
+.client-detail{font-size:12px;color:var(--muted);margin-bottom:2px;}
+.client-stats{display:flex;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.client-stat .val{font-weight:700;font-size:14px;}
+.client-stat .lbl{font-size:10px;color:var(--muted);}
+
+/* EXPENSE */
+.expense-cats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+.exp-cat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;cursor:pointer;transition:all .15s;}
+.exp-cat:hover{border-color:var(--accent);}
+.exp-cat .icon{font-size:22px;margin-bottom:6px;}
+.exp-cat .label{font-size:11.5px;color:var(--muted);}
+.exp-cat .amount{font-size:13px;font-weight:700;margin-top:2px;}
+
+/* REPORTS */
+.report-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+.report-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;cursor:pointer;transition:all .15s;}
+.report-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.report-icon{font-size:28px;margin-bottom:12px;}
+.report-title{font-weight:600;font-size:14px;margin-bottom:4px;}
+.report-desc{font-size:12px;color:var(--muted);}
+
+/* PILL TABS */
+.pill-tabs{display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;}
+.pill-tab{padding:6px 16px;border-radius:7px;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--muted);transition:all .15s;}
+.pill-tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.3);}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#0a2019;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;transform:translateY(100px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:8px;}
+.toast.show{transform:translateY(0);opacity:1;}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+::-webkit-scrollbar-thumb:hover{background:var(--muted2);}
+
+/* PROFIT BAR */
+.profit-bar-wrap{margin:10px 0;}
+.profit-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.profit-bar-label{font-size:12px;color:var(--muted);min-width:80px;}
+.profit-bar-track{flex:1;height:7px;background:var(--surface2);border-radius:99px;overflow:hidden;}
+.profit-bar-fill{height:100%;border-radius:99px;transition:width .8s ease;}
+.profit-bar-val{font-size:12px;font-weight:600;min-width:60px;text-align:right;}
+
+/* PAYMENT DONUT - CSS only */
+.donut-wrap{display:flex;align-items:center;gap:20px;}
+.donut{width:90px;height:90px;border-radius:50%;background:conic-gradient(var(--green) 0% 62%,var(--orange) 62% 80%,var(--red) 80% 100%);display:flex;align-items:center;justify-content:center;position:relative;}
+.donut::after{content:'';position:absolute;width:60px;height:60px;background:var(--surface);border-radius:50%;}
+.donut-legend{display:flex;flex-direction:column;gap:8px;}
+.legend-row{display:flex;align-items:center;gap:8px;font-size:12px;}
+.legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+
+.empty-state{text-align:center;padding:48px;color:var(--muted);}
+.empty-state .icon{font-size:40px;margin-bottom:12px;}
+.empty-state p{font-size:14px;}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.page.active{animation:fadeIn .25s ease;}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">📒</div>
+    <div class="logo-text">Ledger<span>Flow</span></div>
+  </div>
+  <div class="org-picker">
+    <div>
+      <div class="org-name">Kampala Ventures Ltd</div>
+      <div class="org-sub">Free Plan · UGX</div>
+    </div>
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+  </div>
+
+  <nav>
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" onclick="showPage('dashboard',this)">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+
+    <div class="nav-section">Sales</div>
+    <div class="nav-item" onclick="showPage('invoices',this)">
+      <span class="nav-icon">🧾</span> Invoices
+      <span class="nav-badge">3</span>
+    </div>
+    <div class="nav-item" onclick="showPage('quotes',this)">
+      <span class="nav-icon">📋</span> Quotes
+    </div>
+    <div class="nav-item" onclick="showPage('clients',this)">
+      <span class="nav-icon">👥</span> Clients
+    </div>
+
+    <div class="nav-section">Purchases</div>
+    <div class="nav-item" onclick="showPage('expenses',this)">
+      <span class="nav-icon">💳</span> Expenses
+    </div>
+    <div class="nav-item" onclick="showPage('vendors',this)">
+      <span class="nav-icon">🏪</span> Vendors
+    </div>
+
+    <div class="nav-section">Finance</div>
+    <div class="nav-item" onclick="showPage('payments',this)">
+      <span class="nav-icon">💰</span> Payments
+    </div>
+    <div class="nav-item" onclick="showPage('reports',this)">
+      <span class="nav-icon">📈</span> Reports
+    </div>
+
+    <div class="nav-section">Settings</div>
+    <div class="nav-item" onclick="showPage('settings',this)">
+      <span class="nav-icon">⚙️</span> Settings
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-row">
+      <div class="avatar">KV</div>
+      <div class="user-info">
+        <div class="name">Admin User</div>
+        <div class="role">Owner</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-title" id="page-title">Dashboard</div>
+    <div class="search-box">
+      <svg width="14" height="14" fill="none" stroke="#4a5066" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" placeholder="Search invoices, clients…"/>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="showNotif()">🔔</button>
+    <button class="btn btn-primary btn-sm" id="topbar-new-btn" onclick="openNewModal()">+ New Invoice</button>
+  </header>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label"><span style="color:var(--accent)">●</span> Total Revenue</div>
+          <div class="kpi-value" style="color:var(--accent)">UGX 48.2M</div>
+          <div class="kpi-change up">▲ 12.4% vs last month</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label"><span style="color:var(--green)">●</span> Amount Received</div>
+          <div class="kpi-value" style="color:var(--green)">UGX 34.7M</div>
+          <div class="kpi-change up">▲ 8.1% vs last month</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label"><span style="color:var(--orange)">●</span> Outstanding</div>
+          <div class="kpi-value" style="color:var(--orange)">UGX 13.5M</div>
+          <div class="kpi-change down">▼ 3 invoices pending</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label"><span style="color:var(--red)">●</span> Total Expenses</div>
+          <div class="kpi-value" style="color:var(--red)">UGX 18.4M</div>
+          <div class="kpi-change up">▲ 5.2% vs last month</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Income vs Expenses</span>
+            <div class="pill-tabs">
+              <div class="pill-tab active">6M</div>
+              <div class="pill-tab">12M</div>
+              <div class="pill-tab">YTD</div>
+            </div>
+          </div>
+          <div class="bar-chart" id="bar-chart"></div>
+          <div style="display:flex;gap:16px;margin-top:12px;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)"><div style="width:10px;height:10px;border-radius:2px;background:var(--accent)"></div>Income</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)"><div style="width:10px;height:10px;border-radius:2px;background:var(--red)"></div>Expenses</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Payment Status</span>
+          </div>
+          <div class="donut-wrap">
+            <div class="donut"></div>
+            <div class="donut-legend">
+              <div class="legend-row"><div class="legend-dot" style="background:var(--green)"></div><span>Paid — 62%</span></div>
+              <div class="legend-row"><div class="legend-dot" style="background:var(--orange)"></div><span>Pending — 18%</span></div>
+              <div class="legend-row"><div class="legend-dot" style="background:var(--red)"></div><span>Overdue — 20%</span></div>
+            </div>
+          </div>
+          <div style="margin-top:18px;">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px;font-weight:600;">TOP CLIENTS BY REVENUE</div>
+            <div class="profit-bar-wrap">
+              <div class="profit-bar-row"><span class="profit-bar-label">Tech Corp</span><div class="profit-bar-track"><div class="profit-bar-fill" style="width:85%;background:var(--accent)"></div></div><span class="profit-bar-val" style="color:var(--accent)">UGX 12M</span></div>
+              <div class="profit-bar-row"><span class="profit-bar-label">Bloom Ltd</span><div class="profit-bar-track"><div class="profit-bar-fill" style="width:60%;background:var(--accent2)"></div></div><span class="profit-bar-val" style="color:var(--accent2)">UGX 8.4M</span></div>
+              <div class="profit-bar-row"><span class="profit-bar-label">Apex Group</span><div class="profit-bar-track"><div class="profit-bar-fill" style="width:42%;background:var(--green)"></div></div><span class="profit-bar-val" style="color:var(--green)">UGX 5.9M</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Invoices</span>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('invoices',null)">View All →</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Invoice #</th><th>Client</th><th>Date</th><th>Due Date</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+          <tbody id="recent-inv-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- INVOICES -->
+    <div class="page" id="page-invoices">
+      <div class="page-actions">
+        <div class="filters">
+          <div class="filter-btn active" onclick="filterInvoices('all',this)">All</div>
+          <div class="filter-btn" onclick="filterInvoices('paid',this)">Paid</div>
+          <div class="filter-btn" onclick="filterInvoices('pending',this)">Pending</div>
+          <div class="filter-btn" onclick="filterInvoices('overdue',this)">Overdue</div>
+          <div class="filter-btn" onclick="filterInvoices('draft',this)">Draft</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm">⬇ Export</button>
+          <button class="btn btn-primary btn-sm" onclick="openInvoiceModal()">+ New Invoice</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="data-table">
+          <thead><tr><th><input type="checkbox" style="width:auto"/></th><th>Invoice #</th><th>Client</th><th>Issue Date</th><th>Due Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="inv-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- QUOTES -->
+    <div class="page" id="page-quotes">
+      <div class="page-actions">
+        <div class="filters">
+          <div class="filter-btn active">All Quotes</div>
+          <div class="filter-btn">Accepted</div>
+          <div class="filter-btn">Sent</div>
+          <div class="filter-btn">Expired</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showToast('Quote feature — create from Invoices page')">+ New Quote</button>
+      </div>
+      <div class="card">
+        <div class="empty-state">
+          <div class="icon">📋</div>
+          <p>No quotes yet. Create a quote to send to clients for approval.</p>
+          <button class="btn btn-primary" style="margin-top:16px;" onclick="showToast('Create quote modal opening…')">Create Quote</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="page" id="page-clients">
+      <div class="page-actions">
+        <div style="font-size:13px;color:var(--muted)"><b style="color:var(--text)" id="client-count">6</b> clients total</div>
+        <button class="btn btn-primary btn-sm" onclick="openClientModal()">+ Add Client</button>
+      </div>
+      <div class="client-grid" id="client-grid"></div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div class="page" id="page-expenses">
+      <div class="expense-cats">
+        <div class="exp-cat"><div class="icon">✈️</div><div class="label">Travel</div><div class="amount" style="color:var(--accent)">UGX 2.1M</div></div>
+        <div class="exp-cat"><div class="icon">🖥️</div><div class="label">Software</div><div class="amount" style="color:var(--accent2)">UGX 850K</div></div>
+        <div class="exp-cat"><div class="icon">🍽️</div><div class="label">Meals</div><div class="amount" style="color:var(--orange)">UGX 420K</div></div>
+        <div class="exp-cat"><div class="icon">📦</div><div class="label">Supplies</div><div class="amount" style="color:var(--green)">UGX 1.3M</div></div>
+        <div class="exp-cat"><div class="icon">🏢</div><div class="label">Rent</div><div class="amount" style="color:var(--red)">UGX 4.5M</div></div>
+      </div>
+      <div class="page-actions">
+        <span class="card-title">All Expenses</span>
+        <button class="btn btn-primary btn-sm" onclick="openExpenseModal()">+ Add Expense</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Vendor</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody id="exp-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VENDORS -->
+    <div class="page" id="page-vendors">
+      <div class="page-actions">
+        <span></span>
+        <button class="btn btn-primary btn-sm" onclick="showToast('Add vendor modal coming soon')">+ Add Vendor</button>
+      </div>
+      <div class="client-grid" id="vendor-grid"></div>
+    </div>
+
+    <!-- PAYMENTS -->
+    <div class="page" id="page-payments">
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="kpi-card">
+          <div class="kpi-label"><span style="color:var(--green)">●</span> Received This Month</div>
+          <div class="kpi-value" style="color:var(--green)">UGX 11.2M</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label"><span style="color:var(--red)">●</span> Payments Made</div>
+          <div class="kpi-value" style="color:var(--red)">UGX 6.8M</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label"><span style="color:var(--accent)">●</span> Net Cash Flow</div>
+          <div class="kpi-value" style="color:var(--accent)">UGX 4.4M</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Payment Transactions</span></div>
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Reference</th><th>Client/Vendor</th><th>Method</th><th>Amount</th><th>Type</th></tr></thead>
+          <tbody id="pay-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="page" id="page-reports">
+      <div class="report-cards">
+        <div class="report-card" onclick="showToast('Generating P&L Report…')"><div class="report-icon">📊</div><div class="report-title">Profit & Loss</div><div class="report-desc">Income vs expenses breakdown by period</div></div>
+        <div class="report-card" onclick="showToast('Generating Balance Sheet…')"><div class="report-icon">⚖️</div><div class="report-title">Balance Sheet</div><div class="report-desc">Assets, liabilities and equity snapshot</div></div>
+        <div class="report-card" onclick="showToast('Generating Cash Flow…')"><div class="report-icon">💧</div><div class="report-title">Cash Flow</div><div class="report-desc">Operating, investing & financing flows</div></div>
+        <div class="report-card" onclick="showToast('Generating AR Aging…')"><div class="report-icon">🕐</div><div class="report-title">AR Aging</div><div class="report-desc">Receivables grouped by overdue days</div></div>
+        <div class="report-card" onclick="showToast('Generating Tax Summary…')"><div class="report-icon">📑</div><div class="report-title">Tax Summary</div><div class="report-desc">VAT collected and paid overview</div></div>
+        <div class="report-card" onclick="showToast('Generating Sales Report…')"><div class="report-icon">📈</div><div class="report-title">Sales by Client</div><div class="report-desc">Revenue breakdown per customer</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Profit & Loss — Last 6 Months</span>
+          <button class="btn btn-ghost btn-sm">⬇ Export PDF</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Category</th><th>Oct</th><th>Nov</th><th>Dec</th><th>Jan</th><th>Feb</th><th>Mar</th><th>Total</th></tr></thead>
+          <tbody>
+            <tr><td style="font-weight:600;color:var(--green)">Revenue</td><td>7.2M</td><td>6.8M</td><td>9.1M</td><td>7.5M</td><td>8.2M</td><td>9.4M</td><td style="font-weight:700">48.2M</td></tr>
+            <tr><td>Cost of Goods</td><td>2.1M</td><td>1.9M</td><td>2.8M</td><td>2.2M</td><td>2.5M</td><td>2.8M</td><td>14.3M</td></tr>
+            <tr><td style="font-weight:600;color:var(--accent)">Gross Profit</td><td>5.1M</td><td>4.9M</td><td>6.3M</td><td>5.3M</td><td>5.7M</td><td>6.6M</td><td style="font-weight:700;color:var(--accent)">33.9M</td></tr>
+            <tr><td>Operating Exp.</td><td>2.8M</td><td>2.6M</td><td>3.2M</td><td>3.0M</td><td>3.1M</td><td>3.7M</td><td>18.4M</td></tr>
+            <tr><td style="font-weight:600;color:var(--accent2)">Net Profit</td><td>2.3M</td><td>2.3M</td><td>3.1M</td><td>2.3M</td><td>2.6M</td><td>2.9M</td><td style="font-weight:700;color:var(--accent2)">15.5M</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div style="max-width:600px;">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><span class="card-title">Company Profile</span></div>
+          <div class="form-grid">
+            <div class="form-group"><label>Company Name</label><input type="text" value="Kampala Ventures Ltd"/></div>
+            <div class="form-group"><label>TIN / Tax ID</label><input type="text" value="1002345678"/></div>
+            <div class="form-group"><label>Email</label><input type="email" value="accounts@kampalaventures.ug"/></div>
+            <div class="form-group"><label>Phone</label><input type="text" value="+256 700 123456"/></div>
+            <div class="form-group full"><label>Address</label><textarea>Plot 14, Kampala Road, Kampala, Uganda</textarea></div>
+          </div>
+          <button class="btn btn-primary" onclick="showToast('Company profile saved!')">Save Changes</button>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><span class="card-title">Invoice Settings</span></div>
+          <div class="form-grid">
+            <div class="form-group"><label>Invoice Prefix</label><input type="text" value="INV-"/></div>
+            <div class="form-group"><label>Next Invoice No.</label><input type="number" value="1024"/></div>
+            <div class="form-group"><label>Default Currency</label><select><option>UGX — Ugandan Shilling</option><option>USD — US Dollar</option><option>KES — Kenyan Shilling</option></select></div>
+            <div class="form-group"><label>Default Tax Rate (%)</label><input type="number" value="18"/></div>
+            <div class="form-group"><label>Payment Terms</label><select><option>Net 30</option><option>Net 15</option><option>Due on Receipt</option></select></div>
+          </div>
+          <button class="btn btn-primary" onclick="showToast('Invoice settings saved!')">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<!-- INVOICE MODAL -->
+<div class="modal-overlay" id="invoice-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title-text">Create Invoice</div>
+      <button class="close-btn" onclick="closeModal('invoice-modal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Client *</label>
+        <select id="inv-client">
+          <option value="">Select client…</option>
+          <option>Tech Corp Uganda</option>
+          <option>Bloom Digital Ltd</option>
+          <option>Apex Group</option>
+          <option>Nile Solutions</option>
+          <option>Pearl Media</option>
+          <option>Savanna Retail</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Invoice #</label>
+        <input type="text" id="inv-number" value="INV-1024"/>
+      </div>
+      <div class="form-group">
+        <label>Issue Date</label>
+        <input type="date" id="inv-date"/>
+      </div>
+      <div class="form-group">
+        <label>Due Date</label>
+        <input type="date" id="inv-due"/>
+      </div>
+      <div class="form-group">
+        <label>Currency</label>
+        <select id="inv-currency"><option>UGX</option><option>USD</option><option>KES</option></select>
+      </div>
+      <div class="form-group">
+        <label>Tax (%)</label>
+        <input type="number" id="inv-tax" value="18"/>
+      </div>
+    </div>
+
+    <div style="margin:16px 0 8px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;">Line Items</div>
+    <div class="line-items-header">
+      <span>Description</span><span>Qty</span><span>Unit Price</span><span>Total</span><span></span>
+    </div>
+    <div id="line-items-container"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="addLineItem()">+ Add Item</button>
+
+    <div class="invoice-totals" style="margin-top:16px;">
+      <div class="total-row"><span class="total-label">Subtotal</span><span class="total-val" id="inv-subtotal">0</span></div>
+      <div class="total-row"><span class="total-label">Tax</span><span class="total-val" id="inv-tax-amt">0</span></div>
+      <div class="total-row grand"><span class="total-label" style="font-weight:700;">Total</span><span class="total-val" id="inv-total">0</span></div>
+    </div>
+
+    <div class="form-group" style="margin-top:16px;">
+      <label>Notes / Terms</label>
+      <textarea placeholder="Payment terms, bank details, notes…"></textarea>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="saveInvoice('draft')">Save as Draft</button>
+      <button class="btn btn-primary" onclick="saveInvoice('pending')" style="flex:1;">Send Invoice</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT MODAL -->
+<div class="modal-overlay" id="client-modal">
+  <div class="modal" style="width:520px;">
+    <div class="modal-header">
+      <div class="modal-title">Add New Client</div>
+      <button class="close-btn" onclick="closeModal('client-modal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Client Name *</label><input type="text" id="cl-name" placeholder="Company or individual name"/></div>
+      <div class="form-group"><label>Contact Person</label><input type="text" id="cl-contact" placeholder="Full name"/></div>
+      <div class="form-group"><label>Email</label><input type="email" id="cl-email" placeholder="email@company.com"/></div>
+      <div class="form-group"><label>Phone</label><input type="text" id="cl-phone" placeholder="+256…"/></div>
+      <div class="form-group full"><label>Address</label><textarea id="cl-addr" placeholder="Street, City, Country" style="min-height:55px;"></textarea></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="saveClient()">Add Client</button>
+  </div>
+</div>
+
+<!-- EXPENSE MODAL -->
+<div class="modal-overlay" id="expense-modal">
+  <div class="modal" style="width:500px;">
+    <div class="modal-header">
+      <div class="modal-title">Add Expense</div>
+      <button class="close-btn" onclick="closeModal('expense-modal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date *</label><input type="date" id="exp-date"/></div>
+      <div class="form-group"><label>Category *</label>
+        <select id="exp-cat"><option>Travel</option><option>Software</option><option>Meals & Entertainment</option><option>Supplies</option><option>Rent</option><option>Utilities</option><option>Marketing</option><option>Other</option></select>
+      </div>
+      <div class="form-group full"><label>Description *</label><input type="text" id="exp-desc" placeholder="Brief description…"/></div>
+      <div class="form-group"><label>Vendor</label><input type="text" id="exp-vendor" placeholder="Vendor name"/></div>
+      <div class="form-group"><label>Amount (UGX) *</label><input type="number" id="exp-amount" placeholder="0"/></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="saveExpense()">Save Expense</button>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ <span id="toast-msg">Saved successfully!</span></div>
+
+<script>
+// ——— DATA ———
+const invoices = [
+  {id:'INV-1021',client:'Tech Corp Uganda',date:'2026-02-10',due:'2026-03-10',amount:4200000,status:'paid'},
+  {id:'INV-1022',client:'Bloom Digital Ltd',date:'2026-02-18',due:'2026-03-18',amount:1850000,status:'pending'},
+  {id:'INV-1023',client:'Apex Group',date:'2026-02-25',due:'2026-03-04',amount:920000,status:'overdue'},
+  {id:'INV-1020',client:'Nile Solutions',date:'2026-01-30',due:'2026-02-28',amount:3100000,status:'paid'},
+  {id:'INV-1019',client:'Pearl Media',date:'2026-01-15',due:'2026-02-15',amount:670000,status:'draft'},
+];
+
+const clients = [
+  {name:'Tech Corp Uganda',contact:'James Okello',email:'james@techcorp.ug',phone:'+256 772 100200',color:'#4f8ef7',rev:'UGX 12M',inv:8},
+  {name:'Bloom Digital Ltd',contact:'Amina Hassan',email:'amina@bloom.co.ug',phone:'+256 703 445566',color:'#7c6af7',rev:'UGX 8.4M',inv:5},
+  {name:'Apex Group',contact:'Robert Kato',email:'rkato@apexgroup.ug',phone:'+256 756 778899',color:'#2dd4a0',rev:'UGX 5.9M',inv:4},
+  {name:'Nile Solutions',contact:'Grace Atim',email:'grace@nilesol.com',phone:'+256 701 223344',color:'#f7a44f',rev:'UGX 4.2M',inv:3},
+  {name:'Pearl Media',contact:'David Ssali',email:'david@pearlmedia.ug',phone:'+256 754 667788',color:'#f76f6f',rev:'UGX 1.8M',inv:2},
+  {name:'Savanna Retail',contact:'Sophia Nakato',email:'sophia@savanna.ug',phone:'+256 779 990011',color:'#f7d44f',rev:'UGX 900K',inv:1},
+];
+
+const expenses = [
+  {date:'2026-03-01',desc:'AWS Cloud Hosting',cat:'Software',vendor:'Amazon Web Services',amount:850000,status:'paid'},
+  {date:'2026-02-28',desc:'Office Rent — March',cat:'Rent',vendor:'Kampala City Properties',amount:4500000,status:'paid'},
+  {date:'2026-02-25',desc:'Client Lunch — Tech Corp',cat:'Meals',vendor:'Serena Hotel',amount:180000,status:'paid'},
+  {date:'2026-02-20',desc:'Flight to Nairobi',cat:'Travel',vendor:'Uganda Airlines',amount:1200000,status:'pending'},
+  {date:'2026-02-15',desc:'Stationery & Printer',cat:'Supplies',vendor:'Office Mart',amount:320000,status:'paid'},
+];
+
+const payments = [
+  {date:'2026-03-05',ref:'PAY-2301',party:'Tech Corp Uganda',method:'Bank Transfer',amount:4200000,type:'received'},
+  {date:'2026-03-03',ref:'PAY-2300',party:'Amazon Web Services',method:'Credit Card',amount:850000,type:'sent'},
+  {date:'2026-02-28',ref:'PAY-2299',party:'Kampala City Properties',method:'Bank Transfer',amount:4500000,type:'sent'},
+  {date:'2026-02-26',ref:'PAY-2298',party:'Nile Solutions',method:'Mobile Money',amount:3100000,type:'received'},
+  {date:'2026-02-20',ref:'PAY-2297',party:'Apex Group',method:'Cheque',amount:920000,type:'received'},
+];
+
+const vendors = [
+  {name:'Amazon Web Services',contact:'AWS Billing',email:'billing@aws.amazon.com',phone:'—',color:'#f7a44f',rev:'UGX 850K',inv:1},
+  {name:'Kampala City Properties',contact:'Property Manager',email:'info@kcp.ug',phone:'+256 414 223300',color:'#7c6af7',rev:'UGX 4.5M',inv:12},
+  {name:'Uganda Airlines',contact:'Corporate Desk',email:'corporate@ugandaairlines.ug',phone:'+256 800 100200',color:'#4f8ef7',rev:'UGX 2.1M',inv:3},
+  {name:'Office Mart',contact:'Sales Team',email:'sales@officemart.ug',phone:'+256 772 556677',color:'#2dd4a0',rev:'UGX 320K',inv:2},
+];
+
+// ——— RENDER ———
+function fmt(n){return 'UGX '+Number(n).toLocaleString();}
+function statusBadge(s){const map={paid:'paid',pending:'pending',overdue:'overdue',draft:'draft'};return `<span class="status-badge ${map[s]||''}"><span class="status-dot"></span>${s.charAt(0).toUpperCase()+s.slice(1)}</span>`;}
+
+function renderInvoiceTable(arr, tbodyId){
+  const tb = document.getElementById(tbodyId);
+  tb.innerHTML = arr.map(inv=>`
+    <tr>
+      ${tbodyId==='inv-table-body'?'<td><input type="checkbox" style="width:auto"/></td>':''}
+      <td style="font-weight:600;color:var(--accent)">${inv.id}</td>
+      <td>${inv.client}</td>
+      <td>${inv.date}</td>
+      <td>${inv.due}</td>
+      <td style="font-weight:600">${fmt(inv.amount)}</td>
+      <td>${statusBadge(inv.status)}</td>
+      ${tbodyId==='inv-table-body'?`<td><button class="btn btn-ghost btn-sm" onclick="editInv('${inv.id}')">Edit</button></td>`:''}
+    </tr>`).join('');
+}
+
+function renderClients(arr, gridId){
+  document.getElementById(gridId).innerHTML = arr.map((c,i)=>`
+    <div class="client-card" onclick="showToast('Opening ${c.name}…')">
+      <div class="client-avatar" style="background:${c.color}22;color:${c.color}">${c.name.substring(0,2).toUpperCase()}</div>
+      <div class="client-name">${c.name}</div>
+      <div class="client-detail">👤 ${c.contact}</div>
+      <div class="client-detail">✉️ ${c.email}</div>
+      <div class="client-stats">
+        <div class="client-stat"><div class="val" style="color:${c.color}">${c.rev}</div><div class="lbl">Total Billed</div></div>
+        <div class="client-stat"><div class="val">${c.inv}</div><div class="lbl">Invoices</div></div>
+      </div>
+    </div>`).join('');
+}
+
+function renderExpenses(){
+  document.getElementById('exp-table-body').innerHTML = expenses.map(e=>`
+    <tr>
+      <td>${e.date}</td>
+      <td>${e.desc}</td>
+      <td><span style="background:var(--surface2);padding:3px 8px;border-radius:6px;font-size:12px;">${e.cat}</span></td>
+      <td>${e.vendor}</td>
+      <td style="font-weight:600;color:var(--red)">${fmt(e.amount)}</td>
+      <td>${statusBadge(e.status)}</td>
+    </tr>`).join('');
+}
+
+function renderPayments(){
+  document.getElementById('pay-table-body').innerHTML = payments.map(p=>`
+    <tr>
+      <td>${p.date}</td>
+      <td style="font-weight:600;color:var(--accent)">${p.ref}</td>
+      <td>${p.party}</td>
+      <td>${p.method}</td>
+      <td style="font-weight:600;color:${p.type==='received'?'var(--green)':'var(--red)'}">
+        ${p.type==='received'?'+':'-'}${fmt(p.amount)}
+      </td>
+      <td>${statusBadge(p.type==='received'?'paid':'overdue').replace(p.type==='received'?'Paid':'Overdue',p.type==='received'?'Received':'Sent')}</td>
+    </tr>`).join('');
+}
+
+function buildBarChart(){
+  const months=['Oct','Nov','Dec','Jan','Feb','Mar'];
+  const income=[7200,6800,9100,7500,8200,9400];
+  const exp=[4100,3900,5200,4300,4700,5100];
+  const max=Math.max(...income,...exp);
+  const chart=document.getElementById('bar-chart');
+  chart.innerHTML=months.map((m,i)=>`
+    <div class="bar-group">
+      <div class="bar-wrap">
+        <div class="bar income" style="height:${Math.round(income[i]/max*95)}px"></div>
+        <div class="bar expense" style="height:${Math.round(exp[i]/max*95)}px"></div>
+      </div>
+      <div class="bar-label">${m}</div>
+    </div>`).join('');
+}
+
+// ——— NAVIGATION ———
+const pageTitles={dashboard:'Dashboard',invoices:'Invoices',quotes:'Quotes',clients:'Clients',expenses:'Expenses',vendors:'Vendors',payments:'Payments',reports:'Reports',settings:'Settings'};
+const newBtnLabels={invoices:'+ New Invoice',expenses:'+ Add Expense',clients:'+ Add Client',quotes:'+ New Quote'};
+
+function showPage(id, el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('page-title').textContent=pageTitles[id]||id;
+  if(el) el.classList.add('active');
+  else{
+    document.querySelectorAll('.nav-item').forEach(n=>{
+      if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+id+"'")){n.classList.add('active');}
+    });
+  }
+  const btn=document.getElementById('topbar-new-btn');
+  btn.textContent=newBtnLabels[id]||'+ New Invoice';
+  btn.onclick=()=>openModalFor(id);
+}
+
+function openModalFor(id){
+  if(id==='invoices'||id==='dashboard') openInvoiceModal();
+  else if(id==='expenses') openExpenseModal();
+  else if(id==='clients') openClientModal();
+  else showToast('Opening new '+id+' form…');
+}
+function openNewModal(){openModalFor('invoices');}
+
+// ——— MODALS ———
+function openInvoiceModal(){
+  document.getElementById('inv-date').value=new Date().toISOString().split('T')[0];
+  const d=new Date(); d.setDate(d.getDate()+30);
+  document.getElementById('inv-due').value=d.toISOString().split('T')[0];
+  document.getElementById('line-items-container').innerHTML='';
+  addLineItem(); addLineItem();
+  calcTotals();
+  document.getElementById('invoice-modal').classList.add('open');
+}
+function openClientModal(){document.getElementById('client-modal').classList.add('open');}
+function openExpenseModal(){
+  document.getElementById('exp-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('expense-modal').classList.add('open');
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ——— LINE ITEMS ———
+let lineCount=0;
+function addLineItem(){
+  lineCount++;
+  const id='li-'+lineCount;
+  const row=document.createElement('div');
+  row.className='line-item-row'; row.id=id;
+  row.innerHTML=`
+    <input type="text" placeholder="Description…" oninput="calcTotals()"/>
+    <input type="number" placeholder="1" value="1" min="0" oninput="calcTotals()" style="text-align:center"/>
+    <input type="number" placeholder="0" value="" min="0" oninput="calcTotals()"/>
+    <input type="number" readonly placeholder="0" style="color:var(--accent);font-weight:600"/>
+    <button class="remove-btn" onclick="removeItem('${id}')">−</button>`;
+  document.getElementById('line-items-container').appendChild(row);
+}
+function removeItem(id){
+  document.getElementById(id)?.remove();
+  calcTotals();
+}
+function calcTotals(){
+  let sub=0;
+  document.querySelectorAll('#line-items-container .line-item-row').forEach(row=>{
+    const inputs=row.querySelectorAll('input');
+    const qty=parseFloat(inputs[1].value)||0;
+    const price=parseFloat(inputs[2].value)||0;
+    const total=qty*price;
+    inputs[3].value=total?total.toLocaleString():'';
+    sub+=total;
+  });
+  const tax=(parseFloat(document.getElementById('inv-tax').value)||0)/100*sub;
+  document.getElementById('inv-subtotal').textContent=fmt(sub);
+  document.getElementById('inv-tax-amt').textContent=fmt(tax);
+  document.getElementById('inv-total').textContent=fmt(sub+tax);
+}
+
+// ——— SAVE ———
+function saveInvoice(status){
+  const client=document.getElementById('inv-client').value;
+  if(!client){showToast('Please select a client'); return;}
+  const newInv={
+    id:document.getElementById('inv-number').value,
+    client,
+    date:document.getElementById('inv-date').value,
+    due:document.getElementById('inv-due').value,
+    amount:parseInt(document.getElementById('inv-total').textContent.replace(/[^\d]/g,'')),
+    status
+  };
+  invoices.unshift(newInv);
+  renderInvoiceTable(invoices,'inv-table-body');
+  renderInvoiceTable(invoices.slice(0,4),'recent-inv-body');
+  closeModal('invoice-modal');
+  document.getElementById('inv-number').value='INV-'+(1024+invoices.length);
+  showToast(status==='draft'?'Invoice saved as draft!':'Invoice sent successfully!');
+}
+
+function saveClient(){
+  const name=document.getElementById('cl-name').value.trim();
+  if(!name){showToast('Please enter client name'); return;}
+  clients.push({
+    name,contact:document.getElementById('cl-contact').value||'—',
+    email:document.getElementById('cl-email').value||'—',
+    phone:document.getElementById('cl-phone').value||'—',
+    color:'#4f8ef7',rev:'UGX 0',inv:0
+  });
+  renderClients(clients,'client-grid');
+  document.getElementById('client-count').textContent=clients.length;
+  closeModal('client-modal');
+  showToast('Client added!');
+}
+
+function saveExpense(){
+  const desc=document.getElementById('exp-desc').value.trim();
+  const amount=parseFloat(document.getElementById('exp-amount').value);
+  if(!desc||!amount){showToast('Please fill required fields'); return;}
+  expenses.unshift({
+    date:document.getElementById('exp-date').value,
+    desc,cat:document.getElementById('exp-cat').value,
+    vendor:document.getElementById('exp-vendor').value||'—',
+    amount,status:'pending'
+  });
+  renderExpenses();
+  closeModal('expense-modal');
+  showToast('Expense recorded!');
+}
+
+function filterInvoices(filter, el){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const filtered=filter==='all'?invoices:invoices.filter(i=>i.status===filter);
+  renderInvoiceTable(filtered,'inv-table-body');
+}
+
+function editInv(id){
+  showToast('Opening invoice '+id+' for editing…');
+}
+
+// ——— TOAST ———
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toast-msg').textContent=msg||'Saved!';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+function showNotif(){showToast('You have 3 overdue invoices!');}
+
+// ——— INIT ———
+function init(){
+  buildBarChart();
+  renderInvoiceTable(invoices.slice(0,4),'recent-inv-body');
+  renderInvoiceTable(invoices,'inv-table-body');
+  renderClients(clients,'client-grid');
+  renderClients(vendors,'vendor-grid');
+  renderExpenses();
+  renderPayments();
+  // pill tabs
+  document.querySelectorAll('.pill-tab').forEach(tab=>{
+    tab.onclick=()=>{
+      tab.parentElement.querySelectorAll('.pill-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+    };
+  });
+  // close modals on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(o=>{
+    o.onclick=e=>{if(e.target===o) o.classList.remove('open');};
+  });
+}
+init();
+</script>
+</body>
+</html>
